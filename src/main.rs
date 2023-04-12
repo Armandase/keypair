@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
-use openssl::ec::{EcGroup, EcKey, PointConversionForm};
-use openssl::nid::Nid;
-use openssl::bn::BigNumContext;
+use secp256k1::rand::rngs::OsRng;
+use secp256k1::{Secp256k1, Message};
+use secp256k1::hashes::{sha256, Hash};
 
 fn main() -> std::io::Result<()> {
     //cuvre formula : y^2 mod p = (x^3 + 7) mod p
@@ -14,21 +14,13 @@ fn main() -> std::io::Result<()> {
     let public = File::create(readline.unwrap())?;
 
     */
-    let nid = Nid::SECP256K1;
-    let group = EcGroup::from_curve_name(nid).unwrap();
-    let key = EcKey::generate(&group).unwrap();
-    let private = key.private_key().to_hex_str().unwrap().to_lowercase();
-
-    //let mut point_copy = key.clone();
-    let mut ctx0 = BigNumContext::new().unwrap();
-    let public = key.public_key().to_bytes(&group, PointConversionForm::UNCOMPRESSED, &mut ctx0).unwrap();
-
-    //let mut ctx1 = BigNumContext::new().unwrap();
-    //let test = EcPoint::from_bytes(&group, &public, &mut ctx1).unwrap();
-    println!("private key : {}", private);
-    println!("public key : ");
-    for n in public {
-        print!("{:x}", n);
-    }
+    let secp = Secp256k1::new();
+    let (private, public) = secp.generate_keypair(&mut OsRng);
+    let msg = Message::from_hashed_data::<sha256::Hash>("Hello World!".as_bytes());
+    let sign = secp.sign_ecdsa(&msg, &private);
+    assert!(secp.verify_ecdsa(&msg, &sign, &public).is_ok());
+    println!("private key : {:#0?}", private);
+    //println!("public key : {:?}", public);
+    //println!("sign : {:?}", sign);
     Ok(())
 }
